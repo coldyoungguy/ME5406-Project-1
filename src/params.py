@@ -1,6 +1,6 @@
 # Environment Parameters
 GRID_SIZE = 15
-CELL_SIZE = 50
+CELL_SIZE = 30
 OBSTACLE_WEIGHT = 0.3
 
 START_COORD = (0, 0)
