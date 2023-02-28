@@ -28,4 +28,15 @@ ffs = tk.Canvas(window, width=canvas_side, height=canvas_side, bg='grey')
 
 create()
 ffs.pack()
-window.mainloop()
+# window.mainloop()
+
+d = {}
+for r in range(4):
+    for c in range(4):
+        d[(r, c)] = [0] * 4
+
+print(d)
+
+from params import *
+print(END_COORD)
+

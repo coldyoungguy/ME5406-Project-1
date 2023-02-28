@@ -1,13 +1,16 @@
 import heapq
 import tkinter as tk
 from tkinter import ttk
+from ttkthemes import ThemedTk
+
 import numpy as np
 from params import *
 
 GREY = "#323232"
 DARK_GREY = "#171717"
 
-class Env(tk.Tk, object):
+
+class Env(ThemedTk, object):
     def __init__(self):
         super(Env, self).__init__()
         self.title('Frozen Lake')
@@ -15,9 +18,14 @@ class Env(tk.Tk, object):
 
         self.grid_size = GRID_SIZE  # 10
         self.cell_size = CELL_SIZE
-        self.action_space = ['up', 'down', 'left', 'right']
-        self.num_states = len(self.action_space)
+        self.action_space = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # left, right, up, down
+        self.num_actions = len(self.action_space)
         self.num_states = self.grid_size ** 2
+        self.agent_state = START_COORD
+        self.agent_path = []
+        self.shortest_agent_len = float('inf')
+        self.final_agent_path = []
+        self.fps = FPS
 
         self.cellMap = self.generateMap()
         self.main_frame = tk.Frame(self, bg=GREY)
@@ -41,7 +49,8 @@ class Env(tk.Tk, object):
 
         self.mapGen_hole_label = tk.Label(self.mapGen_frame, text="Hole Possibility")
         self.mapGen_hole_label.grid(row=2, column=0)
-        self.mapGen_hole = tk.Spinbox(self.mapGen_frame, from_=0, to=1, format="%1.2f", increment=0.01, textvariable=tk.StringVar(self).set("0.30"))
+        self.mapGen_hole = tk.Spinbox(self.mapGen_frame, from_=0, to=1, format="%1.2f", increment=0.01,
+                                      textvariable=tk.StringVar(self).set("0.30"))
         self.mapGen_hole.grid(row=2, column=1)
 
         self.settings_frame = tk.LabelFrame(self.top_frame, text="Settings", bg=GREY)
@@ -96,7 +105,7 @@ class Env(tk.Tk, object):
         self.map_widget.grid(row=0, column=0)
 
         self.log_label = tk.Label(self.bottom_frame, text="Log")
-        self.log = tk.T
+        # self.log = tk.T
 
         self.createEnv()
         for widget in self.main_frame.winfo_children():
@@ -123,10 +132,10 @@ class Env(tk.Tk, object):
     def generateMap(self):
         out_map = np.random.choice((1, 0),
                                    size=(self.grid_size, self.grid_size),
-                                   p=(OBSTACLE_WEIGHT, 1-OBSTACLE_WEIGHT))
+                                   p=(OBSTACLE_WEIGHT, 1 - OBSTACLE_WEIGHT))
         out_map[START_COORD[0], START_COORD[1]] = 0
         out_map[END_COORD[0], END_COORD[1]] = 0
-        if not self.dijkstra(out_map, START_COORD):
+        while not self.dijkstra(out_map, START_COORD):
             print('Map is invalid: No possible path found')
             out_map = self.generateMap()
         print('Valid path found')
@@ -168,6 +177,59 @@ class Env(tk.Tk, object):
                     heapq.heappush(queue, (neighbour_dist, neighbour))
                     distances[neighbour] = neighbour_dist
         return True if END_COORD in distances.keys() else False
+
+    def reset(self):
+        self.agent_path = []
+        self.agent_state = START_COORD
+        self.drawRec(self.agent_state[0], self.agent_state[1], colour='red')
+        self.update()
+        return self.agent_state
+
+    def del_agent(self, pos):
+        colour = DARK_GREY if self.cellMap[pos[0]][pos[1]] == 0 else 'white'
+        self.drawRec(pos[0], pos[1], colour=colour)
+    def draw_agent(self, old, new):
+        self.del_agent(old)
+        self.drawRec(new[0], new[1], colour='red')
+        self.update()
+
+    def step(self, action):
+        is_done = False
+        current_state = (self.agent_state[0] + action[0], self.agent_state[1] + action[1])
+        reward = 0
+        # print(self.agent_state, current_state)
+
+        if current_state[0] in range(GRID_SIZE) and current_state[1] in range(GRID_SIZE):
+            self.draw_agent(self.agent_state, current_state)
+            self.agent_state = current_state
+            if self.cellMap[self.agent_state[0], self.agent_state[1]] == 0:
+                self.agent_path.append(self.agent_state)
+                if self.agent_state == END_COORD:
+                    # The agent is at the goal
+                    reward = 1
+                    is_done = True
+                    print('[INFO] Agent reached goal')
+                    self.del_agent(self.agent_state)
+                    if len(self.agent_path) < self.shortest_agent_len:
+                        self.shortest_agent_len = len(self.agent_path)
+                        self.final_agent_path = self.agent_path
+
+            elif self.cellMap[self.agent_state[0], self.agent_state[1]] == 1:
+                # The agent has fell in hole
+                print('[INFO] Agent fell into hole')
+                self.del_agent(self.agent_state)
+                is_done = True
+                reward = -1
+        else:
+            # The agent fell off the map
+            print('[INFO] Agent out of bounds')
+            self.del_agent(self.agent_state)
+            is_done = True
+            reward = -1
+        return self.agent_state, reward, is_done
+
+    # def heatmap(self):
+
 
 
 if __name__ == "__main__":
