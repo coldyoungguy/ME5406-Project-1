@@ -19,8 +19,6 @@ class Env(ThemedTk, object):
         self.grid_size = GRID_SIZE  # 10
         self.cell_size = CELL_SIZE
         self.action_space = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # left, right, up, down
-        self.num_actions = len(self.action_space)
-        self.num_states = self.grid_size ** 2
         self.agent_state = START_COORD
         self.agent_path = []
         self.shortest_agent_len = float('inf')
