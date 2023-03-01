@@ -1,7 +1,5 @@
 import random
 import time
-
-import pandas as pd
 from params import *
 
 class BaseAlgo(object):
@@ -20,29 +18,29 @@ class BaseAlgo(object):
         self.Success_Rate = {}
 
     def init_tables(self):
-        Q_table = pd.DataFrame(columns=self.ACTION_SPACE)
-        Return_table = pd.DataFrame(columns=self.ACTION_SPACE)
-        Num_StateAction = pd.DataFrame(columns=self.ACTION_SPACE)
-        return Q_table, Return_table, Num_StateAction
+        Q_table, Return_table, Num_StateAction = {}, {}, {}
 
-    def add_state_to_table(self, state, table):
-        if state not in table.index:
-            return table.append(pd.Series([0] * self.N_ACTION,
-                        index=table.columns, name=state))
+        for r in range(GRID_SIZE):
+            for c in range(GRID_SIZE):
+                Q_table[(r, c)] = [0] * self.N_ACTION
+                Return_table[(r, c)] = [0] * self.N_ACTION
+                Num_StateAction[(r, c)] = [0] * self.N_ACTION
+
+        return Q_table, Return_table, Num_StateAction
 
     def generate_policy(self, state):
         # Generate greedy epsilon policy
-        if random.uniform(0, 1) > self.EPSILON:
-            return_values = self.Q_table.loc[state]
-            action_idx = return_values.index(max(return_values))
+        if random.uniform(0, 1) < self.EPSILON:
+            return_values = self.Q_table[state]
+            action_idx = return_values.index(random.choice([i for i in return_values if i == max(return_values)]))
             action = self.ACTION_SPACE[action_idx]
         else:
             action = random.choice(self.ACTION_SPACE)
         return action
 
-    def generate_episode(self, episode):
-        step = 0
-        observation_state = self.env.reset()
+    def generate_episode(self, episode, method):
+        step, cost = 0, 0
+        current_state = self.env.reset()
         episode_info = []
         fps = self.env.fps
 
@@ -50,9 +48,14 @@ class BaseAlgo(object):
 
         for _ in range(NUM_STEPS):
             time.sleep((1 / fps) if fps != 0 else 0)
-            action = self.generate_policy(observation_state)
-            observation_state, reward, is_done = self.env.step(action)
-            episode_info.append((observation_state, self.env.action_space.index(action), reward))
+            action = self.generate_policy(current_state)
+            next_state, reward, is_done = self.env.step(action)
+
+            if method is not None:
+                cost += method(current_state, self.env.action_space.index(action), reward, next_state)
+
+            current_state = next_state
+            episode_info.append((current_state, self.env.action_space.index(action), reward))
 
             step += 1
             if is_done:

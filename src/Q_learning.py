@@ -1,20 +1,27 @@
 from base_algo import *
-import pandas as pd
 from environment import *
 
 class QLearning(BaseAlgo, object):
     def __init__(self, env, ep, gamma, learning_rate):
         super().__init__(env, ep, gamma)
         self.LEARNING_RATE = learning_rate
-        self.Q_table = pd.DataFrame(columns=self.ACTION_SPACE)
+        self.Q_table, _, _ = self.init_tables()
 
-    def add_state_q_table(self, state):
-        if state not in self.Q_table.index:
-            self.Q_table = self.Q_table.append(pd.Series([0] * self.N_ACTION,
-                        index=self.Q_table.columns, name=state))
+    def learn(self, state, action, reward, next_state):
+        q_target = reward * self.GAMMA * max(self.Q_table[next_state])
+        q_diff = q_target - self.Q_table[state][action]
 
-    def generate_episode(self):
+        # Update Q-Value in Q-tabel for state action pair
+        self.Q_table[state][action] += q_diff * self.LEARNING_RATE
+        return self.Q_table[state][action]
 
+    def run(self, episodes):
+        for episode in range(1, episodes + 1):
+            episode_info = self.generate_episode(episode, self.learn)
+
+        print(f'Accuracy: {self.Success_Rate}')
+        print(f'Rewards: {self.Rewards_List}')
+        print(f'Successes: {self.Goal_Step}')
 
     def test(self):
         print(self.Q_table)
@@ -22,5 +29,4 @@ class QLearning(BaseAlgo, object):
 if __name__ == '__main__':
     env = Env()
     ql = QLearning(env, EPSILON, GAMMA, LEARNING_RATE)
-    ql.test()
-
+    ql.run(NUM_EPISODES)

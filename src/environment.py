@@ -9,6 +9,17 @@ from params import *
 GREY = "#323232"
 DARK_GREY = "#171717"
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 
 class Env(ThemedTk, object):
     def __init__(self):
@@ -206,7 +217,7 @@ class Env(ThemedTk, object):
                     # The agent is at the goal
                     reward = 1
                     is_done = True
-                    print('[INFO] Agent reached goal')
+                    print(f'{bcolors.OKGREEN}[INFO] Agent reached goal{bcolors.ENDC}')
                     self.del_agent(self.agent_state)
                     if len(self.agent_path) < self.shortest_agent_len:
                         self.shortest_agent_len = len(self.agent_path)

@@ -20,7 +20,7 @@ class MonteCarlo(BaseAlgo, object):
 
     def run(self, episodes):
         for episode in range(1, episodes + 1):
-            episode_info = self.generate_episode(episode)
+            episode_info = self.generate_episode(episode, None)
             state_action_pair = [(s, a) for (_, s, a) in episode_info]
             G = 0
 
@@ -30,8 +30,8 @@ class MonteCarlo(BaseAlgo, object):
                 G = reward + self.GAMMA * G
 
                 if (state, action) not in state_action_pair[:i]:
-                    self.Return_table[state][action] += G
-                    self.Num_StateAction[state][action] += 1
+                    self.Return_table[state][action] = self.Return_table[state][action] + G
+                    self.Num_StateAction[state][action] = self.Num_StateAction[state][action] + 1
                     self.Q_table[state][action] = self.Return_table[state][action] / self.Num_StateAction[state][action]
 
             if episode !=0 and episode % ACCURACY_RANGE ==0:
