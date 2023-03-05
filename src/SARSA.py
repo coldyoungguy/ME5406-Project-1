@@ -1,20 +1,21 @@
-from base_algo import BaseAlgo
 from params import *
+from base_algo import *
 
-class QLearning(BaseAlgo, object):
+class SARSA(BaseAlgo, object):
     def __init__(self, env, ep, gamma, learning_rate):
         super().__init__(env, ep, gamma)
         self.LEARNING_RATE = learning_rate
         self.Q_table, _, _ = self.init_tables()
 
-    def learn(self, state, action_idx, reward, next_state, _):
+    #Q(s, a) = Q(s, a) + alpha * (r + gamma * Q(s', a') - Q(s, a))
+    def learn(self, state, action_idx, reward, next_state, next_action_idx):
         if reward == float('-inf'):
             self.Q_table[state][action_idx] = float('-inf')
         else:
-            q_target = reward + self.GAMMA * max(self.Q_table[next_state])
+            q_target = reward + self.GAMMA * self.Q_table[next_state][next_action_idx]
             q_diff = q_target - self.Q_table[state][action_idx]
 
-            # Update Q-Value in Q-tabel for state action pair
+            # Update Q-Value in Q-table for state action pair
             self.Q_table[state][action_idx] += q_diff * self.LEARNING_RATE
         return self.Q_table[state][action_idx]
 
@@ -36,8 +37,9 @@ class QLearning(BaseAlgo, object):
     def test(self):
         print(self.Q_table)
 
+
 if __name__ == '__main__':
     from environment import Env
     env = Env()
-    ql = QLearning(env, EPSILON, GAMMA, LEARNING_RATE)
-    ql.run(NUM_EPISODES)
+    s = SARSA(env, EPSILON, GAMMA, LEARNING_RATE)
+    s.run(NUM_EPISODES)

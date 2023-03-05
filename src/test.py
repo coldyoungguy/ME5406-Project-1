@@ -41,22 +41,22 @@ ffs.pack()
 #
 # from params import *
 # print(END_COORD)
-env = Env()
-t = pd.DataFrame(columns=env.action_space)
-print(t)
-print((2,1) in t)
-t = t.append((2,1))
-print((2,1) in t)
-path = ((0,1), (0,2), (1,0), (0,1))
-
-def add_state_to_table(state, table):
-    if state not in table:
-        return table.append(pd.Series([0] * 4,
-                    index=table.columns, name=state))
-    else:
-        return table
-
-for i in path:
-    t = add_state_to_table(i, t)
-
-print(t)
+# env = Env()
+# t = pd.DataFrame(columns=env.action_space)
+# print(t)
+# print((2,1) in t)
+# t = t.append((2,1))
+# print((2,1) in t)
+# path = ((0,1), (0,2), (1,0), (0,1))
+#
+# def add_state_to_table(state, table):
+#     if state not in table:
+#         return table.append(pd.Series([0] * 4,
+#                     index=table.columns, name=state))
+#     else:
+#         return table
+#
+# for i in path:
+#     t = add_state_to_table(i, t)
+#
+# print(t)
