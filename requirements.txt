@@ -1,0 +1,4 @@
+python==3.6.0
+matplotlib==3.3.4
+pyparsing==2.4.7
+numpy==1.19.5

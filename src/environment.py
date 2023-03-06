@@ -2,7 +2,8 @@ import heapq
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
-from ttkthemes import ThemedTk
+
+from PIL import Image, ImageTk
 from monte_carlo import MonteCarlo
 from Q_learning import QLearning
 from SARSA import SARSA
@@ -25,7 +26,7 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 
-class Env(ThemedTk, object):
+class Env(tk.Tk, object):
     def __init__(self):
         super(Env, self).__init__()
         self.title('Frozen Lake')
@@ -46,8 +47,15 @@ class Env(ThemedTk, object):
         self.episodes = NUM_EPISODES
         self.method = ''
         self.obstacle_weight = OBSTACLE_WEIGHT
+        self.image_map = {}
 
-        self.cellMap = self.generateMap()
+        self.up_img, self.down_img, self.left_img, self.right_img = None, None, None, None
+
+        if USE_FIXED_MAP == 4:
+            self.cellMap = np.array(FIXED_MAP_4)
+        elif USE_FIXED_MAP == 10:
+            self.cellMap = np.array(FIXED_MAP_10)
+        else: self.cellMap = self.generateMap()
         self.main_frame = tk.Frame(self, bg=GREY)
         self.main_frame.pack()
 
@@ -67,7 +75,7 @@ class Env(ThemedTk, object):
         self.mapGen_mapSize = tk.Spinbox(self.mapGen_frame, from_=4, to=25)
         self.mapGen_mapSize.grid(row=1, column=1)
 
-        self.mapGen_hole_label = tk.Label(self.mapGen_frame, text="Hole Possibility", bg=GREY, fg='white')
+        self.mapGen_hole_label = tk.Label(self.mapGen_frame, text="Hole Chance", bg=GREY, fg='white')
         self.mapGen_hole_label.grid(row=2, column=0)
         self.mapGen_hole = tk.Spinbox(self.mapGen_frame, from_=0, to=1, format="%1.2f", increment=0.01,
                                       textvariable=tk.StringVar(self).set("0.30"))
@@ -238,7 +246,7 @@ class Env(ThemedTk, object):
         reward = 0
         # print(self.agent_state, current_state)
 
-        if current_state[0] in range(GRID_SIZE) and current_state[1] in range(GRID_SIZE):
+        if current_state[0] in range(self.grid_size) and current_state[1] in range(self.grid_size):
             self.draw_agent(self.agent_state, current_state)
             self.agent_state = current_state
             if self.cellMap[self.agent_state[0], self.agent_state[1]] == 0:
@@ -289,6 +297,44 @@ class Env(ThemedTk, object):
             elif self.method == 'SARSA':
                 model = SARSA(self, self.ep, self.gamma, self.learning_rate)
                 model.run(self.episodes)
+
+    def draw_final_policy(self, Q_Table):
+        self.up_img = ImageTk.PhotoImage(Image.open('../Assets/up-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
+        self.down_img = ImageTk.PhotoImage(Image.open('../Assets/down-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
+        self.left_img = ImageTk.PhotoImage(Image.open('../Assets/left-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
+        self.right_img = ImageTk.PhotoImage(Image.open('../Assets/right-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
+        for state in Q_Table.keys():
+            if self.cellMap[state[0], state[1]] == 1:
+                continue
+            if state[0] == self.grid_size -1 and state[1] == self.grid_size - 1:
+                continue
+
+            max_ = max(Q_Table[state])
+            if type(max_) == list:
+               pass
+            else:
+                action_idx = Q_Table[state].index(max_)
+                if action_idx == 0: # Right
+                    self.image_map[state] = self.map_widget.create_image(
+                        state[1] * self.cell_size + self.cell_size//2,
+                        state[0] * self.cell_size + self.cell_size//2,
+                        image=self.right_img)
+                elif action_idx == 1: # Left
+                    self.image_map[state] = self.map_widget.create_image(
+                        state[1] * self.cell_size + self.cell_size//2,
+                        state[0] * self.cell_size + self.cell_size//2,
+                        image=self.left_img)
+                elif action_idx == 2: # Down
+                    self.image_map[state] = self.map_widget.create_image(
+                        state[1] * self.cell_size + self.cell_size//2,
+                        state[0] * self.cell_size + self.cell_size//2,
+                        image=self.down_img)
+                elif action_idx == 3: # Up
+                    self.image_map[state] = self.map_widget.create_image(
+                        state[1] * self.cell_size + self.cell_size//2,
+                        state[0] * self.cell_size + self.cell_size//2,
+                        image=self.up_img)
+        self.update()
 
 
     def save(self):

@@ -14,13 +14,15 @@ class QLearning(BaseAlgo, object):
             q_target = reward + self.GAMMA * max(self.Q_table[next_state])
             q_diff = q_target - self.Q_table[state][action_idx]
 
-            # Update Q-Value in Q-tabel for state action pair
+            # Update Q-Value in Q-table for state action pair
             self.Q_table[state][action_idx] += q_diff * self.LEARNING_RATE
         return self.Q_table[state][action_idx]
 
-    def run(self, episodes):
+    def run(self, episodes, is_train=False):
         for episode in range(1, episodes + 1):
             _ = self.generate_episode(episode, self.learn)
+            if USE_LR_SCHEDULE: self.LEARNING_RATE = self.lr_scheduler(self.LEARNING_RATE, episode)
+            if USE_EP_SCHEDULE: self.EPSILON = self.ep_scheduler(self.EPSILON, episode)
 
             if episode != 0 and episode % ACCURACY_RANGE == 0:
                 success_rate = self.goal_count / ACCURACY_RANGE
@@ -31,7 +33,7 @@ class QLearning(BaseAlgo, object):
         print(f'Rewards: {self.Rewards_List}')
         print(f'Successes: {self.Goal_Step}')
         print(f'Q_Table: {self.Q_table}')
-        self.plot_results()
+        if not is_train: self.plot_results()
 
     def test(self):
         print(self.Q_table)
