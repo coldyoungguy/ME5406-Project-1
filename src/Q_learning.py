@@ -5,7 +5,7 @@ class QLearning(BaseAlgo, object):
     def __init__(self, env, ep, gamma, learning_rate):
         super().__init__(env, ep, gamma)
         self.LEARNING_RATE = learning_rate
-        self.Q_table, _, _ = self.init_tables()
+        self.Num_Visited = {k:0 for k in list(self.Q_table.keys())}
 
     def learn(self, state, action_idx, reward, next_state, _):
         if reward == float('-inf'):
@@ -16,6 +16,7 @@ class QLearning(BaseAlgo, object):
 
             # Update Q-Value in Q-table for state action pair
             self.Q_table[state][action_idx] += q_diff * self.LEARNING_RATE
+            self.Num_Visited[state] += 1
         return self.Q_table[state][action_idx]
 
     def run(self, episodes, is_train=False):
@@ -29,18 +30,21 @@ class QLearning(BaseAlgo, object):
                 self.Success_Rate[episode] = success_rate
                 self.goal_count = 0
 
-        print(f'Accuracy: {self.Success_Rate}')
-        print(f'Rewards: {self.Rewards_List}')
-        print(f'Successes: {self.Goal_Step}')
+        # print(f'Accuracy: {self.Success_Rate}')
+        # print(f'Rewards: {self.Rewards_List}')
+        # print(f'Successes: {self.Goal_Step}')
+        print(f'Num_StateAction: {self.Num_Visited}')
         print(f'Q_Table: {self.Q_table}')
         if not is_train:
             self.env.draw_final_policy(self.Q_table)
+            # self.env.draw_number(self.Num_Visited)
             self.plot_convergence()
 
 
     def test(self):
         print(self.Q_table)
 
+# For used when running this python file by itself.
 if __name__ == '__main__':
     from environment import Env
     env = Env()

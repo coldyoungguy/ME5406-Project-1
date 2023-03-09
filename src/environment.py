@@ -1,10 +1,15 @@
+"""
+This contains the class for the environment for the robot to traverse in as well as a user interface to
+interact and visualise each algorithm.
+"""
+
 import heapq
 import time
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 
-from PIL import Image, ImageTk, ImageGrab
+from PIL import Image, ImageTk
 from monte_carlo import MonteCarlo
 from Q_learning import QLearning
 from SARSA import SARSA
@@ -12,9 +17,10 @@ from SARSA import SARSA
 import numpy as np
 from params import *
 
-GREY = "#323232"
-DARK_GREY = "#171717"
+GREY = "#323232"        # Colour of the UI background
+DARK_GREY = "#171717"   # Colour of the Grid background
 
+# Colours used for the text in the console
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -26,40 +32,77 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-
+# Class for the environment
 class Env(tk.Tk, object):
     def __init__(self):
         super(Env, self).__init__()
-        self.title('Frozen Lake')
-        self.configure(bg=GREY)
 
-        self.map_size = 500
-        self.grid_size = GRID_SIZE
-        self.cell_size = self.map_size // GRID_SIZE
+        # Creates the action space for the agent
+        # in the order of right, left, down, up respectively
         self.action_space = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # right, left, down, up
+
+        # Initialises the starting state of the agent (0, 0)
+        # Within params.py, can be changed to any other coordinates
         self.agent_state = START_COORD
+
+        # Creates a blank list to store the path of the agent
+        # should the path be the shortest seen, it would be stores in final_agent_path and
+        # its length in shortest_agent_len.
         self.agent_path = []
         self.shortest_agent_len = float('inf')
         self.final_agent_path = []
-        self.fps = FPS
+
+        # Initialises learning rate, epsilon, gamma, number of episodes and obstacle weight
+        # for use in start button resetting of parameters.
         self.learning_rate = LEARNING_RATE
         self.ep = EPSILON
         self.gamma = GAMMA
         self.episodes = NUM_EPISODES
-        self.method = ''
         self.obstacle_weight = OBSTACLE_WEIGHT
-        self.image_map = {}
 
-        self.up_img, self.down_img, self.left_img, self.right_img = None, None, None, None
-
+        # For tuning purposes, if a fixed map is needed, USE_FIXED_MAP can be set to 4 or 10.
+        # Otherwise, the map will be generated randomly and checked for solvability
         if USE_FIXED_MAP == 4:
             self.cellMap = np.array(FIXED_MAP_4)
+            self.grid_size = 4
         elif USE_FIXED_MAP == 10:
             self.cellMap = np.array(FIXED_MAP_10)
-        else: self.cellMap = self.generateMap()
+            self.grid_size = 10
+        else:
+            self.grid_size = GRID_SIZE
+            self.cellMap = self.generateMap()
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # The block of code below is for the user interface creation
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # Setting the title and background colour of the UI
+        self.title('Frozen Lake')
+        self.configure(bg=GREY)
+
+        # Used to generate the size of the grid map in terms of pixels
+        self.map_size = 1000
+        # The cell size in terms of pixels is then generated based off the map size and grid size
+        self.cell_size = self.map_size // GRID_SIZE
+        # Sets the FPS of the UI for easier visualisation if the updates becomes too fast
+        self.fps = FPS
+        # Stores the algorithm to be used, which cna be changed in the UI.
+        self.method = ''
+        # Sets up containers for the images to prevent them from being garbage collected
+        # only properly initialised for efficiency.
+        self.up_img, self.down_img, self.left_img, self.right_img = None, None, None, None
+
+        # Initialises dictionaries to store the images and numbers to prevent them from being garbage collected
+        self.image_map = {}
+        self.numbers_map = {}
+
+        # Initialises the UI
         self.main_frame = tk.Frame(self, bg=GREY)
         self.main_frame.pack()
 
+        # Creates the main separation between the top and bottom frames
+        # Top frame storing settings and parameters
+        # Bottom frame storing the map
         self.top_frame = tk.Frame(self.main_frame, bg=GREY)
         self.top_frame.grid(row=0, column=0, sticky="news")
         self.bottom_frame = tk.Frame(self.main_frame, bg=GREY)
@@ -145,31 +188,13 @@ class Env(tk.Tk, object):
 
         print('Environment Initialised')
 
-    def createEnv(self):
-        print(f'Creating {self.grid_size}x{self.grid_size} grid')
-        for r in range(self.grid_size):
-            for c in range(self.grid_size):
-                colour = DARK_GREY if self.cellMap[r][c] == 0 else 'white'
-                self.map_rects[(r, c)] = self.drawRec(r, c, colour)
-        self.map_widget.itemconfigure(self.map_rects[(self.grid_size - 1, self.grid_size - 1)], outline='green', width=3)
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Main Environment Creation with solvability checking
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def drawRec(self, r, c, colour):
-        x1 = c * self.cell_size
-        y1 = r * self.cell_size
-        x2 = x1 + self.cell_size
-        y2 = y1 + self.cell_size
-        return self.map_widget.create_rectangle(x1, y1, x2, y2, fill=colour)
-
-    def regenMap(self):
-        self.grid_size = int(self.mapGen_mapSize.get())
-        self.cell_size = self.map_size // self.grid_size
-        self.obstacle_weight = float(self.mapGen_hole.get())
-        self.cellMap = self.generateMap()
-        self.map_widget.delete('all')
-        self.createEnv()
-        print('Map Regenerated')
-        self.update()
-
+    # If a fixed map is not used, a random map is generated based on the chance of holes set by the user
+    # The map is then checked for solvability using Dijkstra's algorithm
+    # If the map is unsolvable, a new map is generated until a solvable map is found
     def generateMap(self):
         out_map = np.random.choice((1, 0),
                                    size=(self.grid_size, self.grid_size),
@@ -188,8 +213,9 @@ class Env(tk.Tk, object):
         print(out_map)
         return out_map
 
+    # Dijkstra's algorithm is used to check if a path exists from the start to the goal
+    # This simply returns True if a path exists, and False if no path exists
     def dijkstra(self, out_map, start):
-        # Generate Neighbours
         graph = {}
         for i in range(self.grid_size):
             for j in range(self.grid_size):
@@ -225,6 +251,40 @@ class Env(tk.Tk, object):
                     distances[neighbour] = neighbour_dist
         return True if (self.grid_size - 1, self.grid_size - 1) in distances.keys() else False
 
+    # This function creates squares to represent cells in the grid based on the row and column
+    def drawRec(self, r, c, colour):
+        x1 = c * self.cell_size
+        y1 = r * self.cell_size
+        x2 = x1 + self.cell_size
+        y2 = y1 + self.cell_size
+        return self.map_widget.create_rectangle(x1, y1, x2, y2, fill=colour)
+
+    # Once a valid map is generated, this function is called in the initialisation of the class
+    # where it draws squares to represent the cells in the grid, white representing a hole,
+    # while black represents a traversable cell.
+    # A green outline is also added to the goal cell for easier visualisation
+    def createEnv(self):
+        print(f'Creating {self.grid_size}x{self.grid_size} grid')
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
+                colour = DARK_GREY if self.cellMap[r][c] == 0 else 'white'
+                self.map_rects[(r, c)] = self.drawRec(r, c, colour)
+        self.map_widget.itemconfigure(self.map_rects[(self.grid_size - 1, self.grid_size - 1)], outline='green', width=3)
+
+    # This function is called everytime the "Regenerate" button is clicked
+    # This reinitialises all the variables needed to recreate a new map.
+    def regenMap(self):
+        self.grid_size = int(self.mapGen_mapSize.get())
+        self.cell_size = self.map_size // self.grid_size
+        self.obstacle_weight = float(self.mapGen_hole.get())
+        self.cellMap = self.generateMap()
+        self.map_widget.delete('all')
+        self.createEnv()
+        print('Map Regenerated')
+        self.update()
+
+    # Everytime an episode ends, this function is called to reset the environment
+    # The agent is placed back at the starting position and the path is cleared
     def reset(self):
         self.agent_path = []
         self.agent_state = START_COORD
@@ -232,6 +292,9 @@ class Env(tk.Tk, object):
         self.update()
         return self.agent_state
 
+    # draw_agent is called everytime the agent moves to a new cell
+    # The previous cell is coloured back to its original colour using del_agent
+    # while the new cell is coloured red representing the agent
     def del_agent(self, pos):
         colour = DARK_GREY if self.cellMap[pos[0]][pos[1]] == 0 else 'white'
         self.map_widget.itemconfigure(self.map_rects[pos], fill=colour)
@@ -241,6 +304,12 @@ class Env(tk.Tk, object):
         self.map_widget.itemconfigure(self.map_rects[new], fill='red')
         self.update()
 
+    # At every new step, when the agent takes a new action, this function is called
+    # The agent is moved to the new cell and the reward is calculated
+    # If the agent reaches the goal, the episode ends and the reward is set to 1
+    # If the agent falls into a hole, the episode ends and the reward is set to -1
+    # If the agent moves to a traversable cell, the reward is set to 0
+    # If the agent traverses out of the map, the episode ends and the reward is set to -inf
     def step(self, action):
         is_done = False
         current_state = (self.agent_state[0] + action[0], self.agent_state[1] + action[1])
@@ -277,6 +346,9 @@ class Env(tk.Tk, object):
 
     # def heatmap(self):
 
+    # When the "Start" button is pressed, all the necessary variables is collected from the input boxes in the UI
+    # The model is then initialised and the run function is called
+    # Where the model used is also determined by the user.
     def start(self):
         self.fps = int(self.settings_fps.get())
         self.ep = float(self.param_epsilon.get())
@@ -298,25 +370,35 @@ class Env(tk.Tk, object):
                 model = SARSA(self, self.ep, self.gamma, self.learning_rate)
                 model.run(self.episodes)
 
+    # When training has completed, the final policy is drawn on the map
+    # The policy is drawn by taking the action with the highest Q value for each state
+    # and represented by arrows.
+    # If a state has duplicate Q-values, it shows that there is no one optimal action
+    # an arrow would not be drawn then and the cell would be left blank.
     def draw_final_policy(self, Q_Table):
         self.up_img = ImageTk.PhotoImage(Image.open('../Assets/up-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
         self.down_img = ImageTk.PhotoImage(Image.open('../Assets/down-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
         self.left_img = ImageTk.PhotoImage(Image.open('../Assets/left-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
         self.right_img = ImageTk.PhotoImage(Image.open('../Assets/right-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
 
+        # Used to clean up the map before drawing the final policy
+        # Glitches in the UI can happen when the FPS is too high and updates do not happen fast enough
         self.createEnv()
 
         for state in Q_Table.keys():
+
+            # If the state is a hole or the goal, do not draw an arrow
             if self.cellMap[state[0], state[1]] == 1:
                 continue
             if state[0] == self.grid_size -1 and state[1] == self.grid_size - 1:
                 continue
 
-            max_ = max(Q_Table[state])
-            if type(max_) == list:
+            action_idx = np.argwhere(np.array(Q_Table[state]) == np.max(Q_Table[state]))
+            if np.shape(action_idx)[0] > 1:
                continue
+            else:
+                action_idx = action_idx[0][0]
 
-            action_idx = Q_Table[state].index(max_)
             if action_idx == 0: # Right
                 self.image_map[state] = self.map_widget.create_image(
                     state[1] * self.cell_size + self.cell_size//2,
@@ -339,6 +421,26 @@ class Env(tk.Tk, object):
                     image=self.up_img)
         self.update()
 
+    # Draws the numbers on the map to check the number of times a cell is visited during training
+    # Allows for analysis of if the final policy is based on luck or if it is optimal
+    def draw_number(self, Numbers):
+        for state in Numbers.keys():
+            if self.cellMap[state[0], state[1]] == 1:
+                continue
+            if state[0] == self.grid_size - 1 and state[1] == self.grid_size - 1:
+                continue
+
+            self.numbers_map[state] = self.map_widget.create_text(
+                state[1] * self.cell_size + self.cell_size//2,
+                state[0] * self.cell_size + self.cell_size//2,
+                text=str(Numbers[state]),
+                fill='green',
+                font='Helvetica 20 bold'
+            )
+        self.update()
+
+
+    # Saves the map as a png file
     def save(self, PATH=None):
         # Need to install Ghostscript for saving eps files
         if PATH is None:
@@ -350,13 +452,14 @@ class Env(tk.Tk, object):
         img = Image.open(f'{PATH}map.eps')
         img.save(f'{PATH}map.png', 'png', quality=100)
 
+    # Interacts with the "Test" button
+    # Tests the final policy by running the agent through the map
+    # Used only to activate the tect function in the algorithms.
     def test(self):
         print('Testing Started')
 
 
-
-
-
+# For used when running this python file by itself.
 if __name__ == "__main__":
     env = Env()
     env.mainloop()

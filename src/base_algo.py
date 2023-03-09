@@ -1,21 +1,45 @@
+"""
+This creates a base class for all algorithms to inherit from.
+All shared functions exists here.
+"""
+
 import copy
 import random
 import time
-
 import numpy as np
 from params import *
 import matplotlib.pyplot as plt
 
+# Initialises the base class for all algorithms
 class BaseAlgo(object):
     def __init__(self, env, ep, gamma):
+
+        # Sets up the environment for the algorithm to interact with
         self.env = env
+        # Inherit the action space from the environment and the number of actions
         self.ACTION_SPACE = self.env.action_space
         self.N_ACTION = len(self.ACTION_SPACE)
+        # Sets up hyperparameters
         self.EPSILON = ep
         self.GAMMA = gamma
         self.LEARNING_RATE = 0
+
+        # Creates the Q-table, Return-table, and Num-StateAction-table
+        # In the form of a dictionary where {state: [action1, action2, ...]} and state is a tuple (row, col)
         self.Q_table, self.Return_table, self.Num_StateAction = self.init_tables()
-        self.Q_table, self.Return_table, self.Num_StateAction = self.init_tables()
+
+        """ Sets up the dictionaries for storing the results of the algorithm
+        Episode_Step: {episode: step} for storing the number of steps taken in each episode
+        Episode_Time: {episode: time} for storing the time taken in each episode
+        Goal_Step: {episode: step} for storing the number of steps taken to reach the goal in each episode
+        Fail_Step: {episode: step} for storing the number of steps taken to fail in each episode
+        Rewards_List: {episode: reward} for storing the average reward over episodes
+        Success_Rate: {episode: success_rate} for storing the success rate over episodes
+        Episode_Cost: {episode: cost} for storing the cost of each episode
+        Q_Converge: {episode: MSE} for storing the MSE of the Q-table over episodes
+        Optimal_Policy: {episode: policy} for storing the optimal policy at each episode
+        Policy_Changes_List: {episode: changes} for storing the number of policy changes over episodes
+        total_policy_changes: the total number of policy changes over all episodes """
         self.Episode_Step, self.Episode_Time = {}, {}
         self.goal_count, self.fail_count, self.total_rewards= 0, 0, 0
         self.Goal_Step, self.Fail_Step = {}, {}
@@ -27,6 +51,16 @@ class BaseAlgo(object):
         self.Policy_Changes_List = {k:0 for k in range(1, NUM_EPISODES + 1)}
         self.total_policy_changes = 0
 
+    # Finds the maximum value in an array and returns the list of indices where the maximum value is found
+    # If there is only one maximum value, it returns the index of that value
+    def max_where(self, array):
+        res = np.argwhere(array == np.max(array))
+        if np.shape(res)[0] > 1:
+            return res[0]
+        return res[0][0]
+
+    # Initialises the Q-table, Return-table, and Num-StateAction-table
+    # In the form of a dictionary where {state: [action1, action2, ...]} and state is a tuple (row, col)
     def init_tables(self):
         Q_table, Return_table, Num_StateAction = {}, {}, {}
 
@@ -38,30 +72,37 @@ class BaseAlgo(object):
 
         return Q_table, Return_table, Num_StateAction
 
+    # Generate a greedy epsilon policy using epsilon, where if a random number generated
+    # is more than epsilon, it will choose a random action, otherwise it will choose the
+    # action with the highest Q-value, if there are multiple actions with the same Q-value,
+    # it will choose one of them randomly
     def generate_policy(self, state):
-        # Generate greedy epsilon policy
         if random.uniform(0, 1) < self.EPSILON:
             return_values = self.Q_table[state]
-            max_ = max(return_values)
-            if type(max_) == list:
-                action_idx = random.choice([i for i in range(len(return_values)) if return_values[i] == max(return_values)])
-            else:
-                action_idx = return_values.index(max_)
+            action_idx = self.max_where(np.array(return_values))
+            if type(action_idx) == np.ndarray:
+                action_idx = random.choice(action_idx)
             action = self.ACTION_SPACE[action_idx]
         else:
             action = random.choice(self.ACTION_SPACE)
         return action
 
+    # Stores the optimal policy in a dictionary where {state: action}
+    # if there are multiple actions with the same Q-value, it will choose one of them randomly
     def get_optimal_policy(self):
         optimal_policy = {}
         for state in self.Q_table.keys():
-            max_ = max(self.Q_table[state])
-            if type(max_) == list:
-                optimal_policy[state] = self.Q_table[state].index(np.random.choice(max_))
+            max_ = self.max_where(self.Q_table[state])
+            if type(max_) == np.ndarray:
+                optimal_policy[state] = np.random.choice(max_)
             else:
-                optimal_policy[state] = self.Q_table[state].index(max_)
+                optimal_policy[state] = max_
         return optimal_policy
 
+    # This function is used to handle the case where the reward returned and the q-value is -inf
+    # That can happen when the agent traverse out of the grid map.
+    # When the Q-value is -inf, it will repeatedly call the generate_policy function until it
+    # finds a valid action where the q-value of the state-action pair is not -inf
     def find_valid_action(self, state):
         action = self.generate_policy(state)
         action_idx = self.ACTION_SPACE.index(action)
@@ -70,6 +111,9 @@ class BaseAlgo(object):
             action_idx = self.ACTION_SPACE.index(action)
         return action, action_idx
 
+    # Calculates the MSE of the Q-table over episodes
+    # to prevent the calculation of the MSE of the Q-table from being affected by the -inf values,
+    # all the -inf values are replaced with 0
     def get_q_convergence(self, episode):
         all_q_values = copy.deepcopy(list(self.Q_table.values()))
         for i in range(len(all_q_values)):
@@ -79,6 +123,9 @@ class BaseAlgo(object):
         mse_diff = np.sum(np.power(all_q_values, 2)) / len(self.Q_table.keys())
         self.Q_Converge[episode] = mse_diff
 
+    # Calculates the number of policy changes over episodes
+    # If the state-action pair in the policy at the current episode is different from that of the
+    # policy at the previous episode, the total number of policy changes is increased by 1
     def get_policy_convergence(self, episode):
         self.Optimal_Policy[episode] = self.get_optimal_policy()
 
@@ -91,25 +138,34 @@ class BaseAlgo(object):
 
         self.Policy_Changes_List[episode] = self.total_policy_changes
 
-    def lr_scheduler(self, lr, episode):
+    # Creates a schedule for the learning rate, to allow for lower learning rates at later episodes
+    # This is to prevent the agent from overfitting to the environment, and to allow for more exploration
+    def lr_scheduler(self, lr, episode, rate=1):
         LR_DECAY = self.LEARNING_RATE / NUM_EPISODES
-        return lr / (1 + LR_DECAY * episode)
+        return lr / (1 * rate + LR_DECAY * episode)
 
-    def ep_scheduler(self, ep, episode):
+    # Creates a schedule for the epsilon, to allow for lower epsilon at later episodes,
+    # to allow for more exploration of the environment at the start of the training
+    def ep_scheduler(self, ep, episode, rate=1):
         # Linear
-        return ep * (1 - episode / NUM_EPISODES)
+        return ep * (1 - episode / NUM_EPISODES) * rate
 
+    # Generates an episode. This begins by resetting the environment, and finding a valid action
+    # The episode will then run for NUM_STEPS steps, where the agent will take an action, and
+    # the environment will return the next state, reward, and whether the episode is done
+    # The episode's information will then be stored in a list (used for FVMC),
+    # and the Q-table and policy will be updated, and the MSE of the Q-table and
+    # the number of policy changes will be calculated
     def generate_episode(self, episode, method=None):
         cost = 0
         current_state = self.env.reset()
         action, action_idx = self.find_valid_action(current_state)
         episode_info = []
-        fps = self.env.fps
 
         episode_start_time = time.time()
 
         for step in range(1, NUM_STEPS + 1):
-            time.sleep((1 / fps) if fps != 0 else 0)
+            time.sleep((1 / self.env.fps) if self.env.fps != 0 else 0)
 
             next_state, reward, is_done = self.env.step(action)
             episode_info.append((current_state, action_idx, reward))
@@ -118,10 +174,12 @@ class BaseAlgo(object):
 
             next_action, next_action_idx = self.find_valid_action(next_state)
 
+            # Used to update the Q-Table for SARSA and Q-Learning
+            # If the method is not specified, it will be skipped for FVMC
             if method is not None:
-                temp = method(current_state, action_idx, reward, next_state, next_action_idx)
-                cost += temp
+                cost += method(current_state, action_idx, reward, next_state, next_action_idx)
                 self.Episode_Cost[episode] = cost
+
             if is_done:
                 episode_elapsed_time = time.time() - episode_start_time
                 self.Episode_Step[episode] = step
@@ -135,7 +193,6 @@ class BaseAlgo(object):
                     self.Fail_Step[episode] = step
 
                 self.total_rewards += (reward if reward != float('-inf') else 0)
-                # Rolling rewards for more accurate representation
                 self.Rewards_List[episode] = self.total_rewards / episode
                 print(f"Episode {episode} finished in {step} steps in {episode_elapsed_time}")
                 break
@@ -146,6 +203,7 @@ class BaseAlgo(object):
 
         return episode_info
 
+    # Used to pull the results of the training for scripted training in plots.py
     def get_results(self):
         return self.Q_table, \
             self.Return_table, \
@@ -156,8 +214,10 @@ class BaseAlgo(object):
             self.Episode_Cost, \
             [len(self.Goal_Step), len(self.Fail_Step)]
 
+    # Plots the results of the training of Steps taken per successful episode, Time taken per episode,
+    # Success rate per episode, and Rewards per episode, Costs per episode, and the number of successes
+    # and failures and saves them to the results folder
     def plot_results(self):
-        # Plot the results of accuracy, rewards, and success rate over episodes
         fig, ax = plt.subplots(2, 3, figsize=(20, 10))
         label = 'Gamma=' + str(self.GAMMA) + ' Lr=' + str(self.LEARNING_RATE)
 
@@ -205,13 +265,13 @@ class BaseAlgo(object):
         plt.tight_layout()
         plt.show()
 
+    # Plots the convergence of the Q-Table and the number of policy changes per episode on the same plot
     def plot_convergence(self):
-        fig, ax1 = plt.subplots(figsize=(6, 4.5))
+        fig, ax1 = plt.subplots(figsize=(7, 5))
         # fig, ax = plt.subplots(1, 2, figsize=(20, 10))
         label = 'Gamma=' + str(self.GAMMA) + ' Lr=' + str(self.LEARNING_RATE)
 
         ax1.plot(list(self.Q_Converge.keys()), list(self.Q_Converge.values()), label=label, color='blue')
-        # ax1.set_title("Q-Table Convergence")
         ax1.set_xlabel("Episode")
         ax1.set_ylabel("Mean-Squared Error", color='blue')
         ax1.legend()
@@ -219,7 +279,6 @@ class BaseAlgo(object):
         ax2 = ax1.twinx()
 
         ax2.plot(list(self.Policy_Changes_List.keys()), list(self.Policy_Changes_List.values()), label=label, color='green')
-        # ax2.set_title("Policy Convergence")
         ax2.set_ylabel("Policy Changes", color='red')
         ax2.legend()
 

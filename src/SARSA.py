@@ -5,7 +5,6 @@ class SARSA(BaseAlgo, object):
     def __init__(self, env, ep, gamma, learning_rate):
         super().__init__(env, ep, gamma)
         self.LEARNING_RATE = learning_rate
-        self.Q_table, _, _ = self.init_tables()
 
     #Q(s, a) = Q(s, a) + alpha * (r + gamma * Q(s', a') - Q(s, a))
     def learn(self, state, action_idx, reward, next_state, next_action_idx):
@@ -43,7 +42,7 @@ class SARSA(BaseAlgo, object):
     def test(self):
         print(self.Q_table)
 
-
+# For used when running this python file by itself.
 if __name__ == '__main__':
     from environment import Env
     env = Env()
