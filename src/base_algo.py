@@ -1,5 +1,8 @@
+import copy
 import random
 import time
+
+import numpy as np
 from params import *
 import matplotlib.pyplot as plt
 
@@ -19,6 +22,10 @@ class BaseAlgo(object):
         self.Rewards_List = {} # average rewards over time
         self.Success_Rate = {}
         self.Episode_Cost = {}
+        self.Q_Converge = {}
+        self.Optimal_Policy = {}
+        self.Policy_Changes_List = {k:0 for k in range(1, NUM_EPISODES + 1)}
+        self.total_policy_changes = 0
 
     def init_tables(self):
         Q_table, Return_table, Num_StateAction = {}, {}, {}
@@ -45,17 +52,44 @@ class BaseAlgo(object):
             action = random.choice(self.ACTION_SPACE)
         return action
 
+    def get_optimal_policy(self):
+        optimal_policy = {}
+        for state in self.Q_table.keys():
+            max_ = max(self.Q_table[state])
+            if type(max_) == list:
+                optimal_policy[state] = self.Q_table[state].index(np.random.choice(max_))
+            else:
+                optimal_policy[state] = self.Q_table[state].index(max_)
+        return optimal_policy
+
     def find_valid_action(self, state):
         action = self.generate_policy(state)
         action_idx = self.ACTION_SPACE.index(action)
-        count = 0
         while self.Q_table[state][action_idx] == float('-inf'):
-            count += 1
             action = self.generate_policy(state)
             action_idx = self.ACTION_SPACE.index(action)
-            # print(state, action, self.Q_table[state])
-            # if count > 100: break
         return action, action_idx
+
+    def get_q_convergence(self, episode):
+        all_q_values = copy.deepcopy(list(self.Q_table.values()))
+        for i in range(len(all_q_values)):
+            for j in range(len(all_q_values[i])):
+                if all_q_values[i][j] == float('-inf'):
+                    all_q_values[i][j] = 0
+        mse_diff = np.sum(np.power(all_q_values, 2)) / len(self.Q_table.keys())
+        self.Q_Converge[episode] = mse_diff
+
+    def get_policy_convergence(self, episode):
+        self.Optimal_Policy[episode] = self.get_optimal_policy()
+
+        if episode == 1:
+            return
+
+        for state in self.Optimal_Policy[episode].keys():
+            if self.Optimal_Policy[episode][state] != self.Optimal_Policy[episode - 1][state]:
+                self.total_policy_changes += 1
+
+        self.Policy_Changes_List[episode] = self.total_policy_changes
 
     def lr_scheduler(self, lr, episode):
         LR_DECAY = self.LEARNING_RATE / NUM_EPISODES
@@ -66,7 +100,7 @@ class BaseAlgo(object):
         return ep * (1 - episode / NUM_EPISODES)
 
     def generate_episode(self, episode, method=None):
-        step, cost = 0, 0
+        cost = 0
         current_state = self.env.reset()
         action, action_idx = self.find_valid_action(current_state)
         episode_info = []
@@ -74,21 +108,20 @@ class BaseAlgo(object):
 
         episode_start_time = time.time()
 
-        for _ in range(NUM_STEPS):
+        for step in range(1, NUM_STEPS + 1):
             time.sleep((1 / fps) if fps != 0 else 0)
+
             next_state, reward, is_done = self.env.step(action)
+            episode_info.append((current_state, action_idx, reward))
+            self.get_q_convergence(episode)
+            self.get_policy_convergence(episode)
+
             next_action, next_action_idx = self.find_valid_action(next_state)
 
             if method is not None:
-                cost += method(current_state, action_idx, reward, next_state, next_action_idx)
+                temp = method(current_state, action_idx, reward, next_state, next_action_idx)
+                cost += temp
                 self.Episode_Cost[episode] = cost
-
-            current_state = next_state
-            action = next_action
-            action_idx = next_action_idx
-            episode_info.append((current_state, action_idx, reward))
-
-            step += 1
             if is_done:
                 episode_elapsed_time = time.time() - episode_start_time
                 self.Episode_Step[episode] = step
@@ -104,9 +137,12 @@ class BaseAlgo(object):
                 self.total_rewards += (reward if reward != float('-inf') else 0)
                 # Rolling rewards for more accurate representation
                 self.Rewards_List[episode] = self.total_rewards / episode
-
                 print(f"Episode {episode} finished in {step} steps in {episode_elapsed_time}")
                 break
+
+            current_state = next_state
+            action = next_action
+            action_idx = next_action_idx
 
         return episode_info
 
@@ -165,6 +201,32 @@ class BaseAlgo(object):
             fig.suptitle(f"Results of {self.__class__.__name__} with Gamma={self.GAMMA}, Epsilon={self.EPSILON}")
         else:
             fig.suptitle(f"Results of {self.__class__.__name__} with Gamma={self.GAMMA}, Epsilon={self.EPSILON}, Learning Rate={self.LEARNING_RATE}")
+
+        plt.tight_layout()
+        plt.show()
+
+    def plot_convergence(self):
+        fig, ax1 = plt.subplots(figsize=(6, 4.5))
+        # fig, ax = plt.subplots(1, 2, figsize=(20, 10))
+        label = 'Gamma=' + str(self.GAMMA) + ' Lr=' + str(self.LEARNING_RATE)
+
+        ax1.plot(list(self.Q_Converge.keys()), list(self.Q_Converge.values()), label=label, color='blue')
+        # ax1.set_title("Q-Table Convergence")
+        ax1.set_xlabel("Episode")
+        ax1.set_ylabel("Mean-Squared Error", color='blue')
+        ax1.legend()
+
+        ax2 = ax1.twinx()
+
+        ax2.plot(list(self.Policy_Changes_List.keys()), list(self.Policy_Changes_List.values()), label=label, color='green')
+        # ax2.set_title("Policy Convergence")
+        ax2.set_ylabel("Policy Changes", color='red')
+        ax2.legend()
+
+        if self.LEARNING_RATE == 0:
+            fig.suptitle(f"Convergence of {self.__class__.__name__} with Gamma={self.GAMMA}, Epsilon={self.EPSILON}")
+        else:
+            fig.suptitle(f"Convergence of {self.__class__.__name__} with Gamma={self.GAMMA}, Epsilon={self.EPSILON}, Learning Rate={self.LEARNING_RATE}")
 
         plt.tight_layout()
         plt.show()

@@ -33,7 +33,10 @@ class QLearning(BaseAlgo, object):
         print(f'Rewards: {self.Rewards_List}')
         print(f'Successes: {self.Goal_Step}')
         print(f'Q_Table: {self.Q_table}')
-        if not is_train: self.plot_results()
+        if not is_train:
+            self.env.draw_final_policy(self.Q_table)
+            self.plot_convergence()
+
 
     def test(self):
         print(self.Q_table)

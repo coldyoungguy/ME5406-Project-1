@@ -1,9 +1,10 @@
 import heapq
+import time
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageGrab
 from monte_carlo import MonteCarlo
 from Q_learning import QLearning
 from SARSA import SARSA
@@ -244,7 +245,6 @@ class Env(tk.Tk, object):
         is_done = False
         current_state = (self.agent_state[0] + action[0], self.agent_state[1] + action[1])
         reward = 0
-        # print(self.agent_state, current_state)
 
         if current_state[0] in range(self.grid_size) and current_state[1] in range(self.grid_size):
             self.draw_agent(self.agent_state, current_state)
@@ -265,14 +265,14 @@ class Env(tk.Tk, object):
                 # The agent has fell in hole
                 print(f'{bcolors.WARNING}[INFO] Agent fell into hole{bcolors.ENDC}')
                 self.del_agent(self.agent_state)
-                is_done = True
                 reward = -1
+                is_done = True
         else:
             # The agent fell off the map
             print('[INFO] Agent out of bounds')
             self.del_agent(self.agent_state)
-            is_done = True
             reward = float('-inf')
+            is_done = True
         return self.agent_state, reward, is_done
 
     # def heatmap(self):
@@ -303,6 +303,9 @@ class Env(tk.Tk, object):
         self.down_img = ImageTk.PhotoImage(Image.open('../Assets/down-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
         self.left_img = ImageTk.PhotoImage(Image.open('../Assets/left-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
         self.right_img = ImageTk.PhotoImage(Image.open('../Assets/right-arrow.png').resize((self.cell_size//2, self.cell_size//2), Image.ANTIALIAS))
+
+        self.createEnv()
+
         for state in Q_Table.keys():
             if self.cellMap[state[0], state[1]] == 1:
                 continue
@@ -311,34 +314,42 @@ class Env(tk.Tk, object):
 
             max_ = max(Q_Table[state])
             if type(max_) == list:
-               pass
-            else:
-                action_idx = Q_Table[state].index(max_)
-                if action_idx == 0: # Right
-                    self.image_map[state] = self.map_widget.create_image(
-                        state[1] * self.cell_size + self.cell_size//2,
-                        state[0] * self.cell_size + self.cell_size//2,
-                        image=self.right_img)
-                elif action_idx == 1: # Left
-                    self.image_map[state] = self.map_widget.create_image(
-                        state[1] * self.cell_size + self.cell_size//2,
-                        state[0] * self.cell_size + self.cell_size//2,
-                        image=self.left_img)
-                elif action_idx == 2: # Down
-                    self.image_map[state] = self.map_widget.create_image(
-                        state[1] * self.cell_size + self.cell_size//2,
-                        state[0] * self.cell_size + self.cell_size//2,
-                        image=self.down_img)
-                elif action_idx == 3: # Up
-                    self.image_map[state] = self.map_widget.create_image(
-                        state[1] * self.cell_size + self.cell_size//2,
-                        state[0] * self.cell_size + self.cell_size//2,
-                        image=self.up_img)
+               continue
+
+            action_idx = Q_Table[state].index(max_)
+            if action_idx == 0: # Right
+                self.image_map[state] = self.map_widget.create_image(
+                    state[1] * self.cell_size + self.cell_size//2,
+                    state[0] * self.cell_size + self.cell_size//2,
+                    image=self.right_img)
+            elif action_idx == 1: # Left
+                self.image_map[state] = self.map_widget.create_image(
+                    state[1] * self.cell_size + self.cell_size//2,
+                    state[0] * self.cell_size + self.cell_size//2,
+                    image=self.left_img)
+            elif action_idx == 2: # Down
+                self.image_map[state] = self.map_widget.create_image(
+                    state[1] * self.cell_size + self.cell_size//2,
+                    state[0] * self.cell_size + self.cell_size//2,
+                    image=self.down_img)
+            elif action_idx == 3: # Up
+                self.image_map[state] = self.map_widget.create_image(
+                    state[1] * self.cell_size + self.cell_size//2,
+                    state[0] * self.cell_size + self.cell_size//2,
+                    image=self.up_img)
         self.update()
 
+    def save(self, PATH=None):
+        # Need to install Ghostscript for saving eps files
+        if PATH is None:
+            PATH = '../Results/'
+        self.map_widget.postscript(file=f'{PATH}map.eps', colormode='color')
+        self.update()
+        print(f'Saving map to {PATH}')
+        time.sleep(3)
+        img = Image.open(f'{PATH}map.eps')
+        img.save(f'{PATH}map.png', 'png', quality=100)
 
-    def save(self):
-        print('Saving.....')
     def test(self):
         print('Testing Started')
 

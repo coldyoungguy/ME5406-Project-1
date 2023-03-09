@@ -12,7 +12,7 @@ class MonteCarlo(BaseAlgo, object):
         self.Success_Rate = {}
 
 
-    def run(self, episodes):
+    def run(self, episodes, is_train=False):
         for episode in range(1, episodes + 1):
             episode_info = self.generate_episode(episode)
             if USE_EP_SCHEDULE: self.EPSILON = self.ep_scheduler(self.EPSILON, episode)
@@ -29,13 +29,11 @@ class MonteCarlo(BaseAlgo, object):
                 if (state, action) not in state_action_pair[:i]:
                     self.Num_StateAction[state][action] += 1
                     if reward == float('-inf'):
-                        # self.Return_table[state][action] = float('-inf')
+                        self.Return_table[state][action] = float('-inf')
                         self.Q_table[state][action] = float('-inf')
                     else:
                         self.Return_table[state][action] += G
                         self.Q_table[state][action] = self.Return_table[state][action] / self.Num_StateAction[state][action]
-                    # self.Return_table[state][action] += G
-                    # self.Q_table[state][action] = self.Return_table[state][action] / self.Num_StateAction[state][action]
 
             if episode !=0 and episode % ACCURACY_RANGE ==0:
                 success_rate = self.goal_count / ACCURACY_RANGE
@@ -46,6 +44,10 @@ class MonteCarlo(BaseAlgo, object):
         print(f'Rewards: {self.Rewards_List}')
         print(f'Successes: {self.Goal_Step}')
         print(f'Q_Table: {self.Q_table}')
+
+        if not is_train:
+            self.env.draw_final_policy(self.Q_table)
+            self.plot_convergence()
 
 
 if __name__ == "__main__":
