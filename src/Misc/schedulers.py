@@ -1,6 +1,5 @@
 from src.Misc.params import *
 from math import pow, floor
-
 def lin_schedule(episode):
     return LEARNING_RATE * (1 - episode / NUM_EPISODES)
 
@@ -20,3 +19,8 @@ def discrete_schedule(episode):
         return 0.5
     else:
         return 0.1
+
+schedule_set = {"Linear Schedule": lin_schedule,
+                "Exponential Schedule": exp_schedule,
+                "Discrete Schedule": discrete_schedule,
+                "Drop Schedule": drop_schedule}

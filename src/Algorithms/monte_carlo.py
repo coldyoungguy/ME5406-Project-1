@@ -19,10 +19,14 @@ class MonteCarlo(BaseAlgo, object):
     # pair is then used to update the Q-table. The number of visits ar each state-action pair is
     # incremented by 1 every time the state-action pair is visited.
     # The return is calculated by G(S, A) = R(S, A) + GAMMA * G(S', A')
-    def run(self, episodes, is_train=False):
+    def run(self, episodes, is_train=False, gamma_schedule=None, ep_schedule=None):
         for episode in range(1, episodes + 1):
+            if gamma_schedule is not None and self.USE_GAMMA_SCHEDULE:
+                self.GAMMA = gamma_schedule(episode)
+            if ep_schedule is not None and self.USE_EP_SCHEDULE:
+                self.EPSILON = ep_schedule(episode)
+
             episode_info = self.generate_episode(episode)
-            if USE_EP_SCHEDULE: self.EPSILON = self.ep_scheduler(self.EPSILON, episode)
 
             state_action_pair = [(s, a) for (s, a, _) in episode_info]
             G = 0
@@ -62,7 +66,7 @@ class MonteCarlo(BaseAlgo, object):
 
 # For used when running this python file by itself.
 if __name__ == "__main__":
-    from environment import Env
+    from src.Environment.environment import Env
     env = Env()
     mc = MonteCarlo(env, EPSILON, GAMMA)
     mc.run(NUM_EPISODES)

@@ -7,7 +7,7 @@ import copy
 import random
 import time
 import numpy as np
-from params import *
+from src.Misc.params import *
 import matplotlib.pyplot as plt
 
 # Initialises the base class for all algorithms
@@ -24,6 +24,9 @@ class BaseAlgo(object):
         self.EPSILON = ep
         self.GAMMA = gamma
         self.LEARNING_RATE = 0
+        self.USE_GAMMA_SCHEDULE = USE_GAMMA_SCHEDULE
+        self.USE_LR_SCHEDULE = USE_LR_SCHEDULE
+        self.USE_EP_SCHEDULE = USE_EP_SCHEDULE
 
         # Creates the Q-table, Return-table, and Num-StateAction-table
         # In the form of a dictionary where {state: [action1, action2, ...]} and state is a tuple (row, col)

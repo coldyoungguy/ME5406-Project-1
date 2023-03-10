@@ -13,8 +13,6 @@ class SARSA(BaseAlgo, object):
     def __init__(self, env, ep, gamma, learning_rate):
         super().__init__(env, ep, gamma)
         self.LEARNING_RATE = learning_rate
-        self.USE_GAMMA_SCHEDULE = USE_GAMMA_SCHEDULE
-        self.USE_LR_SCHEDULE = USE_LR_SCHEDULE
 
     # This portion allows SARSA to learn from experience, where it accepts a state, action,
     # reward, next state, and next action. The Q-Value for the state-action pair is then updated based on the formula:
@@ -38,13 +36,15 @@ class SARSA(BaseAlgo, object):
     # which is specified in the params.py file. It also accepts a learning rate schedule and a discount factor schedule.
     # The use of LR and GAMMA schedules are specified in the params.py file, whcih cna be configured in the UI as well.
     # finally the final optimal policy and number of visits can be drawn on the UI.
-    def run(self, episodes, is_train=False, lr_schedule=None, gamma_schedule=None):
+    def run(self, episodes, is_train=False, lr_schedule=None, gamma_schedule=None, ep_schedule=None):
         for episode in range(1, episodes + 1):
             _ = self.generate_episode(episode, self.learn)
             if lr_schedule is not None and self.USE_LR_SCHEDULE:
                 self.LEARNING_RATE = lr_schedule(self.LEARNING_RATE, episode)
             if gamma_schedule is not None and self.USE_GAMMA_SCHEDULE:
                 self.GAMMA = gamma_schedule(self.GAMMA, episode)
+            if ep_schedule is not None and self.USE_EP_SCHEDULE:
+                self.EPSILON = ep_schedule(episode)
 
             if episode != 0 and episode % ACCURACY_RANGE == 0:
                 success_rate = self.goal_count / ACCURACY_RANGE
@@ -63,7 +63,7 @@ class SARSA(BaseAlgo, object):
 
 # For used when running this python file by itself.
 if __name__ == '__main__':
-    from environment import Env
+    from src.Environment.environment import Env
     env = Env()
     s = SARSA(env, EPSILON, GAMMA, LEARNING_RATE)
     s.run(NUM_EPISODES)

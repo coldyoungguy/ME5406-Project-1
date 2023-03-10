@@ -13,8 +13,6 @@ class QLearning(BaseAlgo, object):
     def __init__(self, env, ep, gamma, learning_rate):
         super().__init__(env, ep, gamma)
         self.LEARNING_RATE = learning_rate
-        self.USE_GAMMA_SCHEDULE = USE_GAMMA_SCHEDULE
-        self.USE_LR_SCHEDULE = USE_LR_SCHEDULE
 
     # This portion allows Q-Learning to learn from experience, where it accepts a state, action,
     # reward, next state. The Q-Value for the state-action pair is then updated based on the formula:
@@ -39,13 +37,15 @@ class QLearning(BaseAlgo, object):
     # and USE_GAMMA_SCHEDULE determines whether the learning rate and epsilon values are updated according to
     # the schedules defined in the BaseAlgo class. Finally the final optimal policy and the number of visits at
     # each state is drawn on the UI.
-    def run(self, episodes, is_train=False, lr_schedule=None, gamma_schedule=None):
+    def run(self, episodes, is_train=False, lr_schedule=None, gamma_schedule=None, ep_schedule=None):
         for episode in range(1, episodes + 1):
             _ = self.generate_episode(episode, self.learn)
             if lr_schedule is not None and self.USE_LR_SCHEDULE:
                 self.LEARNING_RATE = lr_schedule(episode)
             if gamma_schedule is not None and self.USE_GAMMA_SCHEDULE:
                 self.GAMMA = gamma_schedule(episode)
+            if ep_schedule is not None and self.USE_EP_SCHEDULE:
+                self.EPSILON = ep_schedule(episode)
 
             if episode != 0 and episode % ACCURACY_RANGE == 0:
                 success_rate = self.goal_count / ACCURACY_RANGE
@@ -64,7 +64,7 @@ class QLearning(BaseAlgo, object):
 
 # For used when running this python file by itself.
 if __name__ == '__main__':
-    from environment import Env
+    from src.Environment.environment import Env
     env = Env()
     ql = QLearning(env, EPSILON, GAMMA, LEARNING_RATE)
     ql.run(NUM_EPISODES)

@@ -91,12 +91,15 @@ class Env(tk.Tk, object):
         # Sets the FPS of the UI for easier visualisation if the updates becomes too fast
         self.fps = FPS
         # Stores the algorithm to be used, which cna be changed in the UI.
-        self.method = ''
+        self.method, self.lr_method, self.ep_method, self.gamma_method = '', '', '', ''
         # Sets up containers for the images to prevent them from being garbage collected
         # only properly initialised for efficiency.
         self.up_img, self.down_img, self.left_img, self.right_img = None, None, None, None
         # For faster runtimes, as during experimentation, the UI could slow down the algorithms
         self.runtime_updates = RUNTIME_UPDATES
+        self.USE_GAMMA_SCHEDULE = tk.BooleanVar(USE_GAMMA_SCHEDULE)
+        self.USE_EP_SCHEDULE = tk.BooleanVar(USE_EP_SCHEDULE)
+        self.USE_LR_SCHEDULE = tk.BooleanVar(USE_LR_SCHEDULE)
 
         # Initialises dictionaries to store the images and numbers to prevent them from being garbage collected
         self.image_map = {}
@@ -172,6 +175,33 @@ class Env(tk.Tk, object):
         self.param_save.grid(row=0, column=0)
         self.param_start = tk.Button(self.paramButtons_frame, text="Start", command=self.start)
         self.param_start.grid(row=0, column=2)
+
+        self.adv_settings_frame = tk.LabelFrame(self.top_frame, text="Advanced Settings", bg=GREY)
+        self.adv_settings_frame.grid(row=0, column=2)
+
+        self.lr_sch_check = tk.Checkbutton(self.adv_settings_frame, variable=self.USE_LR_SCHEDULE, bg=GREY)
+        self.lr_sch_check.grid(row=0, column=0)
+        self.lr_sch_label = tk.Label(self.adv_settings_frame, text="Learning Rate Scheduler", bg=GREY, fg='white')
+        self.lr_sch_label.grid(row=0, column=1)
+        self.lr_sch_combo = ttk.Combobox(self.adv_settings_frame,
+                                         values=list(schedule_set.keys()))
+        self.lr_sch_combo.grid(row=0, column=2, columnspan=2)
+
+        self.gamma_sch_check = tk.Checkbutton(self.adv_settings_frame, variable=self.USE_GAMMA_SCHEDULE, bg=GREY)
+        self.gamma_sch_check.grid(row=1, column=0)
+        self.gamma_sch_label = tk.Label(self.adv_settings_frame, text="Discount Rate Scheduler", bg=GREY, fg='white')
+        self.gamma_sch_label.grid(row=1, column=1)
+        self.gamma_sch_combo = ttk.Combobox(self.adv_settings_frame,
+                                         values=list(schedule_set.keys()))
+        self.gamma_sch_combo.grid(row=1, column=2, columnspan=2)
+
+        self.ep_sch_check = tk.Checkbutton(self.adv_settings_frame, variable=self.USE_EP_SCHEDULE, bg=GREY)
+        self.ep_sch_check.grid(row=2, column=0)
+        self.ep_sch_label = tk.Label(self.adv_settings_frame, text="Epsilon Scheduler", bg=GREY, fg='white')
+        self.ep_sch_label.grid(row=2, column=1)
+        self.ep_sch_combo = ttk.Combobox(self.adv_settings_frame,
+                                         values=list(schedule_set.keys()))
+        self.ep_sch_combo.grid(row=2, column=2, columnspan=2)
 
         self.map_frame = tk.LabelFrame(self.bottom_frame, text="Generated Map", bg=GREY, fg='white')
         self.map_frame.grid(row=1, column=0)
@@ -367,16 +397,26 @@ class Env(tk.Tk, object):
 
         if self.method == '':
             error_box = messagebox.showerror(title='Model not set', message='Please select a method before continuing')
+        elif self.lr_sch_combo.get() == '' and self.USE_LR_SCHEDULE:
+            error_box = messagebox.showerror(title='Learning Rate schedule not set', message='Please select a method before continuing')
+        elif self.gamma_sch_combo.get() == '' and self.USE_GAMMA_SCHEDULE:
+            error_box = messagebox.showerror(title='Discount Rate schedule not set', message='Please select a method before continuing')
+        elif self.ep_sch_combo.get() == '' and self.USE_EP_SCHEDULE:
+            error_box = messagebox.showerror(title='Epsilon schedule not set', message='Please select a method before continuing')
         else:
+            self.lr_method = schedule_set[self.lr_sch_combo.get()] if self.USE_LR_SCHEDULE else None
+            self.gamma_method = schedule_set[self.gamma_sch_combo.get()] if self.USE_GAMMA_SCHEDULE else None
+            self.ep_method = schedule_set[self.ep_sch_combo.get()] if self.USE_EP_SCHEDULE else None
+
             if self.method == 'Monte-Carlo':
                 model = MonteCarlo(self, self.ep, self.gamma)
-                model.run(self.episodes)
+                model.run(self.episodes, gamma_schedule=self.gamma_method, ep_schedule=self.ep_method)
             elif self.method == 'Q-Learning':
                 model = QLearning(self, self.ep, self.gamma, self.learning_rate)
-                model.run(self.episodes)
+                model.run(self.episodes, gamma_schedule=self.gamma_method, ep_schedule=self.ep_method, lr_schedule=self.lr_method)
             elif self.method == 'SARSA':
                 model = SARSA(self, self.ep, self.gamma, self.learning_rate)
-                model.run(self.episodes)
+                model.run(self.episodes, gamma_schedule=self.gamma_method, ep_schedule=self.ep_method, lr_schedule=self.lr_method)
 
     # When training has completed, the final policy is drawn on the map
     # The policy is drawn by taking the action with the highest Q value for each state
