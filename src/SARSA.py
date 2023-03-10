@@ -1,5 +1,7 @@
+
+
 from params import *
-from base_algo import *
+from base_algo import BaseAlgo
 
 class SARSA(BaseAlgo, object):
     def __init__(self, env, ep, gamma, learning_rate):
@@ -16,13 +18,16 @@ class SARSA(BaseAlgo, object):
 
             # Update Q-Value in Q-table for state action pair
             self.Q_table[state][action_idx] += q_diff * self.LEARNING_RATE
+            self.Num_Visited[state] += 1
         return self.Q_table[state][action_idx]
 
-    def run(self, episodes, is_train=False):
+    def run(self, episodes, is_train=False, lr_schedule=None, gamma_schedule=None):
         for episode in range(1, episodes + 1):
             _ = self.generate_episode(episode, self.learn)
-            if USE_LR_SCHEDULE: self.LEARNING_RATE = self.lr_scheduler(self.LEARNING_RATE, episode)
-            if USE_EP_SCHEDULE: self.EPSILON = self.ep_scheduler(self.EPSILON, episode)
+            if lr_schedule is not None:
+                self.LEARNING_RATE = lr_schedule(self.LEARNING_RATE, episode)
+            if gamma_schedule is not None:
+                self.GAMMA = gamma_schedule(self.GAMMA, episode)
 
             if episode != 0 and episode % ACCURACY_RANGE == 0:
                 success_rate = self.goal_count / ACCURACY_RANGE
@@ -35,12 +40,14 @@ class SARSA(BaseAlgo, object):
         print(f'Q_Table: {self.Q_table}')
         if not is_train:
             self.env.draw_final_policy(self.Q_table)
+            self.plot_results()
             self.plot_convergence()
             time.sleep(1)
             # self.env.save(PATH='../Results/SARSA/')
 
     def test(self):
         print(self.Q_table)
+        # TODO: Setup test function
 
 # For used when running this python file by itself.
 if __name__ == '__main__':

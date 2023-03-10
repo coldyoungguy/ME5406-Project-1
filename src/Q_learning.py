@@ -1,12 +1,25 @@
+"""
+This file contains the Q-Learning algorithm. It is a model-free algorithm that learns from experience.
+It inherits from the BaseAlgo class.
+"""
+
 from base_algo import BaseAlgo
 from params import *
 
+# Initialises the Q-Learning algorithm with all variables from the BaseAlgo class.
 class QLearning(BaseAlgo, object):
+
+    # Initialise learning rate
     def __init__(self, env, ep, gamma, learning_rate):
         super().__init__(env, ep, gamma)
         self.LEARNING_RATE = learning_rate
-        self.Num_Visited = {k:0 for k in list(self.Q_table.keys())}
 
+    # This portion allows Q-Learning to learn from experience, where it accepts a state, action,
+    # reward, next state. The Q-Value for the state-action pair is then updated based on the formula:
+    # Q(S, A) = Q(S, A) + ALPHA * (R(S, A) + GAMMA * max(Q(S', A')) - Q(S, A))
+    # Where ALPHA is the learning rate, GAMMA is the discount factor, and R(S, A) is the reward.
+    # The Q-Value is then returned for cost calculation for plotting and analysis.
+    # If the state-action pair is out of bounds, then the Q-value is left as -inf.
     def learn(self, state, action_idx, reward, next_state, _):
         if reward == float('-inf'):
             self.Q_table[state][action_idx] = float('-inf')
@@ -19,30 +32,39 @@ class QLearning(BaseAlgo, object):
             self.Num_Visited[state] += 1
         return self.Q_table[state][action_idx]
 
-    def run(self, episodes, is_train=False):
+    # This is the main function of the Q-Learning algorithm. It runs the algorithm for NUM_EPISODES
+    # number of episodes specified in the params.py file. According to the params.py file, the USE_LR_SCHEDULE
+    # and USE_EP_SCHEDULE determines whether the learning rate and epsilon values are updated according to
+    # the schedules defined in the BaseAlgo class. Finally the final optimal policy and the number of visits at
+    # each state is drawn on the UI.
+    def run(self, episodes, is_train=False, lr_schedule=None, gamma_schedule=None):
         for episode in range(1, episodes + 1):
             _ = self.generate_episode(episode, self.learn)
-            if USE_LR_SCHEDULE: self.LEARNING_RATE = self.lr_scheduler(self.LEARNING_RATE, episode)
-            if USE_EP_SCHEDULE: self.EPSILON = self.ep_scheduler(self.EPSILON, episode)
+            if lr_schedule is not None:
+                self.LEARNING_RATE = lr_schedule(self.LEARNING_RATE, episode)
+            if gamma_schedule is not None:
+                self.GAMMA = gamma_schedule(self.GAMMA, episode)
 
             if episode != 0 and episode % ACCURACY_RANGE == 0:
                 success_rate = self.goal_count / ACCURACY_RANGE
                 self.Success_Rate[episode] = success_rate
                 self.goal_count = 0
 
-        # print(f'Accuracy: {self.Success_Rate}')
-        # print(f'Rewards: {self.Rewards_List}')
-        # print(f'Successes: {self.Goal_Step}')
-        print(f'Num_StateAction: {self.Num_Visited}')
+        print(f'Accuracy: {self.Success_Rate}')
+        print(f'Rewards: {self.Rewards_List}')
+        print(f'Successes: {self.Goal_Step}')
         print(f'Q_Table: {self.Q_table}')
         if not is_train:
             self.env.draw_final_policy(self.Q_table)
             # self.env.draw_number(self.Num_Visited)
+            self.plot_results()
             self.plot_convergence()
 
-
+    # Tests the final policy by running the algorithm at every cell in the grid, that is not a hole and checks
+    # if the optimal policy is correct and if it reaches the goal.
     def test(self):
         print(self.Q_table)
+        # TODO: Setup test function
 
 # For used when running this python file by itself.
 if __name__ == '__main__':

@@ -29,6 +29,7 @@ class MonteCarlo(BaseAlgo, object):
 
             for i in range(len(episode_info)):
                 state, action, reward = episode_info[-i - 1]
+                self.Num_Visited[state] += 1
 
                 if reward != float('-inf'):
                     G = reward + self.GAMMA * G
@@ -56,6 +57,7 @@ class MonteCarlo(BaseAlgo, object):
         # and the UI is also not updated with the final policy.
         if not is_train:
             self.env.draw_final_policy(self.Q_table)
+            self.plot_results()
             self.plot_convergence()
 
 # For used when running this python file by itself.

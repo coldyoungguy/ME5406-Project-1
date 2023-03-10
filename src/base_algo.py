@@ -19,6 +19,7 @@ class BaseAlgo(object):
         # Inherit the action space from the environment and the number of actions
         self.ACTION_SPACE = self.env.action_space
         self.N_ACTION = len(self.ACTION_SPACE)
+        self.grid_size = self.env.grid_size
         # Sets up hyperparameters
         self.EPSILON = ep
         self.GAMMA = gamma
@@ -27,6 +28,10 @@ class BaseAlgo(object):
         # Creates the Q-table, Return-table, and Num-StateAction-table
         # In the form of a dictionary where {state: [action1, action2, ...]} and state is a tuple (row, col)
         self.Q_table, self.Return_table, self.Num_StateAction = self.init_tables()
+
+        # Sets up a dictionary for the number of times a node is visited
+        # In the form of {state: num_visited}
+        self.Num_Visited = {k: 0 for k in list(self.Q_table.keys())}
 
         """ Sets up the dictionaries for storing the results of the algorithm
         Episode_Step: {episode: step} for storing the number of steps taken in each episode
@@ -64,8 +69,8 @@ class BaseAlgo(object):
     def init_tables(self):
         Q_table, Return_table, Num_StateAction = {}, {}, {}
 
-        for r in range(GRID_SIZE):
-            for c in range(GRID_SIZE):
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
                 Q_table[(r, c)] = [0] * self.N_ACTION
                 Return_table[(r, c)] = [0] * self.N_ACTION
                 Num_StateAction[(r, c)] = [0] * self.N_ACTION
@@ -77,7 +82,7 @@ class BaseAlgo(object):
     # action with the highest Q-value, if there are multiple actions with the same Q-value,
     # it will choose one of them randomly
     def generate_policy(self, state):
-        if random.uniform(0, 1) < self.EPSILON:
+        if random.uniform(0, 1) > self.EPSILON:
             return_values = self.Q_table[state]
             action_idx = self.max_where(np.array(return_values))
             if type(action_idx) == np.ndarray:
@@ -129,6 +134,7 @@ class BaseAlgo(object):
     def get_policy_convergence(self, episode):
         self.Optimal_Policy[episode] = self.get_optimal_policy()
 
+        # Since Episodes starts at 1, there will be no previous episode to compare to
         if episode == 1:
             return
 
@@ -148,7 +154,7 @@ class BaseAlgo(object):
     # to allow for more exploration of the environment at the start of the training
     def ep_scheduler(self, ep, episode, rate=1):
         # Linear
-        return ep * (1 - episode / NUM_EPISODES) * rate
+        return ep * (episode / NUM_EPISODES) * rate
 
     # Generates an episode. This begins by resetting the environment, and finding a valid action
     # The episode will then run for NUM_STEPS steps, where the agent will take an action, and
@@ -212,7 +218,9 @@ class BaseAlgo(object):
             self.Success_Rate, \
             self.Rewards_List, \
             self.Episode_Cost, \
-            [len(self.Goal_Step), len(self.Fail_Step)]
+            [len(self.Goal_Step), len(self.Fail_Step)], \
+            self.Q_Converge, \
+            self.Policy_Changes_List
 
     # Plots the results of the training of Steps taken per successful episode, Time taken per episode,
     # Success rate per episode, and Rewards per episode, Costs per episode, and the number of successes
@@ -268,7 +276,6 @@ class BaseAlgo(object):
     # Plots the convergence of the Q-Table and the number of policy changes per episode on the same plot
     def plot_convergence(self):
         fig, ax1 = plt.subplots(figsize=(7, 5))
-        # fig, ax = plt.subplots(1, 2, figsize=(20, 10))
         label = 'Gamma=' + str(self.GAMMA) + ' Lr=' + str(self.LEARNING_RATE)
 
         ax1.plot(list(self.Q_Converge.keys()), list(self.Q_Converge.values()), label=label, color='blue')

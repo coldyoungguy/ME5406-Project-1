@@ -60,11 +60,14 @@ class Env(tk.Tk, object):
         self.episodes = NUM_EPISODES
         self.obstacle_weight = OBSTACLE_WEIGHT
 
-        # For tuning purposes, if a fixed map is needed, USE_FIXED_MAP can be set to 4 or 10.
+        # For tuning purposes, if a fixed map is needed, USE_FIXED_MAP can be set to 4 or 7 or 10.
         # Otherwise, the map will be generated randomly and checked for solvability
         if USE_FIXED_MAP == 4:
             self.cellMap = np.array(FIXED_MAP_4)
             self.grid_size = 4
+        elif USE_FIXED_MAP == 7:
+            self.cellMap = np.array(FIXED_MAP_7)
+            self.grid_size = 7
         elif USE_FIXED_MAP == 10:
             self.cellMap = np.array(FIXED_MAP_10)
             self.grid_size = 10
@@ -83,7 +86,7 @@ class Env(tk.Tk, object):
         # Used to generate the size of the grid map in terms of pixels
         self.map_size = 1000
         # The cell size in terms of pixels is then generated based off the map size and grid size
-        self.cell_size = self.map_size // GRID_SIZE
+        self.cell_size = self.map_size // self.grid_size
         # Sets the FPS of the UI for easier visualisation if the updates becomes too fast
         self.fps = FPS
         # Stores the algorithm to be used, which cna be changed in the UI.
@@ -91,6 +94,8 @@ class Env(tk.Tk, object):
         # Sets up containers for the images to prevent them from being garbage collected
         # only properly initialised for efficiency.
         self.up_img, self.down_img, self.left_img, self.right_img = None, None, None, None
+        # For faster runtimes, as during experimentation, the UI could slow down the algorithms
+        self.runtime_updates = RUNTIME_UPDATES
 
         # Initialises dictionaries to store the images and numbers to prevent them from being garbage collected
         self.image_map = {}
@@ -177,9 +182,6 @@ class Env(tk.Tk, object):
         self.map_widget.grid(row=0, column=0)
         self.map_rects = {}
 
-        self.log_label = tk.Label(self.bottom_frame, text="Log")
-        # self.log = tk.T
-
         self.createEnv()
         for widget in self.main_frame.winfo_children():
             for child in widget.winfo_children():
@@ -191,6 +193,13 @@ class Env(tk.Tk, object):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Main Environment Creation with solvability checking
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # If updates in the UI is disabled in params.py, the update function is overridden to do nothing
+    # Else it updates the UI with the necessary UI elements
+    def update(self):
+        if not self.runtime_updates:
+            return
+        super(Env, self).update()
 
     # If a fixed map is not used, a random map is generated based on the chance of holes set by the user
     # The map is then checked for solvability using Dijkstra's algorithm
@@ -419,7 +428,9 @@ class Env(tk.Tk, object):
                     state[1] * self.cell_size + self.cell_size//2,
                     state[0] * self.cell_size + self.cell_size//2,
                     image=self.up_img)
+        self.runtime_updates = True
         self.update()
+        if not RUNTIME_UPDATES: self.runtime_updates = False
 
     # Draws the numbers on the map to check the number of times a cell is visited during training
     # Allows for analysis of if the final policy is based on luck or if it is optimal
@@ -437,7 +448,9 @@ class Env(tk.Tk, object):
                 fill='green',
                 font='Helvetica 20 bold'
             )
+        self.runtime_updates = True
         self.update()
+        if not RUNTIME_UPDATES: self.runtime_updates = False
 
 
     # Saves the map as a png file
