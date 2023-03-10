@@ -58,7 +58,7 @@ def iterate_lr(env, model):
 
     fig.suptitle(f"Results of {model.__name__} with Epsilon={EPSILON}, Gamma={gamma}")
     plt.tight_layout()
-    PATH_LR_SUMMARY = '../Results/' + model.__name__ + '/Summary_lr.png'
+    PATH_LR_SUMMARY = '../../Results/' + model.__name__ + '/Summary_lr.png'
     fig.savefig(PATH_LR_SUMMARY, dpi=300)
 
 def iterate_gamma(env, model):
@@ -107,7 +107,7 @@ def iterate_gamma(env, model):
 
     fig.suptitle(f"Results of {model.__name__} with Epsilon={EPSILON}, Lr={lr}")
     plt.tight_layout()
-    PATH_GAMMA_SUMMARY = '../Results/' + model.__name__ + '/Summary_gamma.png'
+    PATH_GAMMA_SUMMARY = '../../Results/' + model.__name__ + '/Summary_gamma.png'
     fig.savefig(PATH_GAMMA_SUMMARY, dpi=300)
 
 def iterate_ep(env, model):
@@ -157,7 +157,7 @@ def iterate_ep(env, model):
 
     fig.suptitle(f"Results of {model.__name__} with Gamma={gamma}, Lr={lr}")
     plt.tight_layout()
-    PATH_GAMMA_SUMMARY = '../Results/' + model.__name__ + '/Summary_EP.png'
+    PATH_GAMMA_SUMMARY = '../../Results/' + model.__name__ + '/Summary_EP.png'
     fig.savefig(PATH_GAMMA_SUMMARY, dpi=300)
 
 # For used when running this python file by itself.

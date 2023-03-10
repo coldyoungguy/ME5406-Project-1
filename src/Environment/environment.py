@@ -63,6 +63,7 @@ class Env(tk.Tk, object):
 
         # For tuning purposes, if a fixed map is needed, USE_FIXED_MAP can be set to 4 or 7 or 10.
         # Otherwise, the map will be generated randomly and checked for solvability
+        self.USE_FIXED_MAP_BOOL = tk.BooleanVar()
         if USE_FIXED_MAP == 4:
             self.cellMap = np.array(FIXED_MAP_4)
             self.grid_size = 4
@@ -125,20 +126,22 @@ class Env(tk.Tk, object):
 
         self.mapGen_mapSize_label = tk.Label(self.mapGen_frame, text="Map Size: ", bg=GREY, fg='white')
         self.mapGen_mapSize_label.grid(row=1, column=0)
-        self.mapGen_mapSize = tk.Spinbox(self.mapGen_frame, from_=4, to=25)
+        self.mapGen_mapSize = tk.Spinbox(self.mapGen_frame, from_=4, to=25,
+                                         textvariable=tk.DoubleVar(value=10))
         self.mapGen_mapSize.grid(row=1, column=1)
 
         self.mapGen_hole_label = tk.Label(self.mapGen_frame, text="Hole Chance", bg=GREY, fg='white')
         self.mapGen_hole_label.grid(row=2, column=0)
         self.mapGen_hole = tk.Spinbox(self.mapGen_frame, from_=0, to=1, format="%1.2f", increment=0.01,
-                                      textvariable=tk.StringVar(self).set("0.30"))
+                                      textvariable=tk.DoubleVar(value=0.10))
         self.mapGen_hole.grid(row=2, column=1)
 
         self.settings_frame = tk.LabelFrame(self.top_frame, text="Settings", bg=GREY)
         self.settings_frame.grid(row=0, column=0)
         self.settings_label = tk.Label(self.settings_frame, text="FPS", bg=GREY, fg='white')
         self.settings_label.grid(row=0, column=0)
-        self.settings_fps = tk.Spinbox(self.settings_frame, from_=4, to=10000, )
+        self.settings_fps = tk.Spinbox(self.settings_frame, from_=0, to=10000,
+                                       textvariable=tk.DoubleVar(value=0))
         self.settings_fps.grid(row=0, column=1)
 
         self.param_frame = tk.LabelFrame(self.top_frame, text="Parameters", bg=GREY)
@@ -151,22 +154,26 @@ class Env(tk.Tk, object):
 
         self.param_episodes_label = tk.Label(self.param_frame, text="Episodes: ", bg=GREY, fg='white')
         self.param_episodes_label.grid(row=1, column=0)
-        self.param_episodes = tk.Spinbox(self.param_frame, from_=5, to=1000000)
+        self.param_episodes = tk.Spinbox(self.param_frame, from_=5, to=1000000,
+                                         textvariable=tk.DoubleVar(value=10000))
         self.param_episodes.grid(row=1, column=1)
 
         self.param_epsilon_label = tk.Label(self.param_frame, text="Epsilon: ", bg=GREY, fg='white')
         self.param_epsilon_label.grid(row=2, column=0)
-        self.param_epsilon = tk.Spinbox(self.param_frame, from_=0, to=100, format="%1.2f", increment=0.01)
+        self.param_epsilon = tk.Spinbox(self.param_frame, from_=0, to=1, format="%1.2f", increment=0.01,
+                                        textvariable=tk.DoubleVar(value=0.5))
         self.param_epsilon.grid(row=2, column=1)
 
         self.param_discount_label = tk.Label(self.param_frame, text="Discount: ", bg=GREY, fg='white')
         self.param_discount_label.grid(row=3, column=0)
-        self.param_discount = tk.Spinbox(self.param_frame, from_=0, to=100, format="%1.2f", increment=0.01)
+        self.param_discount = tk.Spinbox(self.param_frame, from_=0, to=1, format="%1.2f", increment=0.01,
+                                         textvariable=tk.DoubleVar(value=0.90))
         self.param_discount.grid(row=3, column=1)
 
         self.param_lr_label = tk.Label(self.param_frame, text="Learning Rate: ", bg=GREY, fg='white')
         self.param_lr_label.grid(row=4, column=0)
-        self.param_lr = tk.Spinbox(self.param_frame, from_=0, to=100, format="%1.2f", increment=0.01)
+        self.param_lr = tk.Spinbox(self.param_frame, from_=0, to=1, format="%1.2f", increment=0.01,
+                                   textvariable=tk.DoubleVar(value=0.10))
         self.param_lr.grid(row=4, column=1)
 
         self.paramButtons_frame = tk.Frame(self.param_frame, bg=GREY)
@@ -179,29 +186,37 @@ class Env(tk.Tk, object):
         self.adv_settings_frame = tk.LabelFrame(self.top_frame, text="Advanced Settings", bg=GREY)
         self.adv_settings_frame.grid(row=0, column=2)
 
+        self.use_fixed_map_check = tk.Checkbutton(self.adv_settings_frame, variable=self.USE_FIXED_MAP_BOOL, bg=GREY)
+        self.use_fixed_map_check.grid(row=0, column=0)
+        self.use_fixed_map_label = tk.Label(self.adv_settings_frame, text="Use Fixed Map", bg=GREY, fg='white')
+        self.use_fixed_map_label.grid(row=0, column=1)
+        self.use_fixed_map_combo = ttk.Combobox(self.adv_settings_frame,
+                                         values=['4x4', '7x7', '10x10'])
+        self.use_fixed_map_combo.grid(row=0, column=2, columnspan=2)
+
         self.lr_sch_check = tk.Checkbutton(self.adv_settings_frame, variable=self.USE_LR_SCHEDULE, bg=GREY)
-        self.lr_sch_check.grid(row=0, column=0)
+        self.lr_sch_check.grid(row=1, column=0)
         self.lr_sch_label = tk.Label(self.adv_settings_frame, text="Learning Rate Scheduler", bg=GREY, fg='white')
-        self.lr_sch_label.grid(row=0, column=1)
+        self.lr_sch_label.grid(row=1, column=1)
         self.lr_sch_combo = ttk.Combobox(self.adv_settings_frame,
                                          values=list(schedule_set.keys()))
-        self.lr_sch_combo.grid(row=0, column=2, columnspan=2)
+        self.lr_sch_combo.grid(row=1, column=2, columnspan=2)
 
         self.gamma_sch_check = tk.Checkbutton(self.adv_settings_frame, variable=self.USE_GAMMA_SCHEDULE, bg=GREY)
-        self.gamma_sch_check.grid(row=1, column=0)
+        self.gamma_sch_check.grid(row=2, column=0)
         self.gamma_sch_label = tk.Label(self.adv_settings_frame, text="Discount Rate Scheduler", bg=GREY, fg='white')
-        self.gamma_sch_label.grid(row=1, column=1)
+        self.gamma_sch_label.grid(row=2, column=1)
         self.gamma_sch_combo = ttk.Combobox(self.adv_settings_frame,
                                          values=list(schedule_set.keys()))
-        self.gamma_sch_combo.grid(row=1, column=2, columnspan=2)
+        self.gamma_sch_combo.grid(row=2, column=2, columnspan=2)
 
         self.ep_sch_check = tk.Checkbutton(self.adv_settings_frame, variable=self.USE_EP_SCHEDULE, bg=GREY)
-        self.ep_sch_check.grid(row=2, column=0)
+        self.ep_sch_check.grid(row=3, column=0)
         self.ep_sch_label = tk.Label(self.adv_settings_frame, text="Epsilon Scheduler", bg=GREY, fg='white')
-        self.ep_sch_label.grid(row=2, column=1)
+        self.ep_sch_label.grid(row=3, column=1)
         self.ep_sch_combo = ttk.Combobox(self.adv_settings_frame,
                                          values=list(schedule_set.keys()))
-        self.ep_sch_combo.grid(row=2, column=2, columnspan=2)
+        self.ep_sch_combo.grid(row=3, column=2, columnspan=2)
 
         self.map_frame = tk.LabelFrame(self.bottom_frame, text="Generated Map", bg=GREY, fg='white')
         self.map_frame.grid(row=1, column=0)
@@ -393,15 +408,28 @@ class Env(tk.Tk, object):
         self.gamma = float(self.param_discount.get())
         self.learning_rate = float(self.param_lr.get())
         self.episodes = int(self.param_episodes.get())
-        self.method = self.param_method.get()
+        self.method = str(self.param_method.get())
+
+        if str(self.use_fixed_map_combo.get()) == '4x4':
+            self.cellMap = np.array(FIXED_MAP_4)
+            self.grid_size = 4
+        elif str(self.use_fixed_map_combo.get()) == '7x7':
+            self.cellMap = np.array(FIXED_MAP_7)
+            self.grid_size = 7
+        elif str(self.use_fixed_map_combo.get()) == '10x10':
+            self.cellMap = np.array(FIXED_MAP_10)
+            self.grid_size = 10
+        else:
+            self.grid_size = GRID_SIZE
+            self.cellMap = self.generateMap()
 
         if self.method == '':
             error_box = messagebox.showerror(title='Model not set', message='Please select a method before continuing')
-        elif self.lr_sch_combo.get() == '' and self.USE_LR_SCHEDULE:
+        elif str(self.lr_sch_combo.get()) == '' and bool(self.USE_LR_SCHEDULE):
             error_box = messagebox.showerror(title='Learning Rate schedule not set', message='Please select a method before continuing')
-        elif self.gamma_sch_combo.get() == '' and self.USE_GAMMA_SCHEDULE:
+        elif str(self.gamma_sch_combo.get()) == '' and bool(self.USE_GAMMA_SCHEDULE):
             error_box = messagebox.showerror(title='Discount Rate schedule not set', message='Please select a method before continuing')
-        elif self.ep_sch_combo.get() == '' and self.USE_EP_SCHEDULE:
+        elif str(self.ep_sch_combo.get()) == '' and bool(self.USE_EP_SCHEDULE):
             error_box = messagebox.showerror(title='Epsilon schedule not set', message='Please select a method before continuing')
         else:
             self.lr_method = schedule_set[self.lr_sch_combo.get()] if self.USE_LR_SCHEDULE else None
